@@ -37,6 +37,11 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 
 const ROLE_RANK: Record<string, number> = { employee: 0, lead: 1, admin: 2, super_admin: 3 };
 
+/** True for lead/admin/super_admin — the roles that get the complete view. */
+export function isPrivileged(role: string | undefined): boolean {
+  return (ROLE_RANK[role ?? ''] ?? 0) >= ROLE_RANK.lead;
+}
+
 /** Role checks are enforced server-side on every endpoint (PRD §10). */
 export function requireRole(min: 'lead' | 'admin' | 'super_admin') {
   return (req: Request, res: Response, next: NextFunction): void => {

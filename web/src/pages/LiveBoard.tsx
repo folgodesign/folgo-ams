@@ -12,7 +12,7 @@ import { statusMeta } from '../lib/status';
 const STATUS_ORDER = ['WORKING', 'IN_MEETING', 'FOCUS', 'ON_BREAK', 'AWAY', 'CHECKED_OUT', 'ON_LEAVE'];
 
 export function LiveBoardPage() {
-  const { user } = useAuth();
+  const { user, isLead } = useAuth();
   useTick(1000);
   const [members, setMembers] = useState<BoardMember[]>([]);
   const [connected, setConnected] = useState(false);
@@ -80,6 +80,7 @@ export function LiveBoardPage() {
           <h1 className="text-h1">Live now</h1>
           <p className="text-sm text-text-muted mt-1">
             Members ({members.length}) · <span className="text-status-working">{workingNow} working now</span>
+            {!isLead && <span> · showing status &amp; current work only</span>}
           </p>
         </div>
         <div className="flex items-center gap-3 text-caption uppercase text-text-muted">
@@ -89,8 +90,13 @@ export function LiveBoardPage() {
               {connected ? 'Live' : 'Reconnecting…'}
             </span>
           )}
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="bg-bg-surface border border-border-subtle rounded-sm px-2 py-1 text-text-secondary" />
-          {date && <button onClick={() => setDate('')} className="text-accent">Back to live</button>}
+          {/* Historical snapshots are attendance detail — privileged viewers only. */}
+          {isLead && (
+            <>
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="bg-bg-surface border border-border-subtle rounded-sm px-2 py-1 text-text-secondary" />
+              {date && <button onClick={() => setDate('')} className="text-accent">Back to live</button>}
+            </>
+          )}
         </div>
       </div>
 
@@ -118,14 +124,14 @@ export function LiveBoardPage() {
             {g.name && <div className="text-caption uppercase text-text-muted mb-3">{g.name} ({g.items.length})</div>}
             <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">
               {g.items.map((m) => (
-                <MemberCard key={m.id} member={m} onClick={() => setSelected(m)} pulse={!!pulses[m.id]} orgTz={orgTz} />
+                <MemberCard key={m.id} member={m} onClick={() => setSelected(m)} pulse={!!pulses[m.id]} orgTz={orgTz} limited={!isLead} />
               ))}
             </div>
           </div>
         ))
       )}
 
-      {selected && <ProfilePanel member={members.find((m) => m.id === selected.id) ?? selected} onClose={() => setSelected(null)} canViewDetail orgTz={orgTz} />}
+      {selected && <ProfilePanel member={members.find((m) => m.id === selected.id) ?? selected} onClose={() => setSelected(null)} canViewDetail={isLead} orgTz={orgTz} />}
     </div>
   );
 }

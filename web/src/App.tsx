@@ -50,7 +50,8 @@ export default function App() {
         }
       >
         <Route index element={<HomePage />} />
-        <Route path="live" element={<RequireLead><LiveBoardPage /></RequireLead>} />
+        {/* Everyone sees the live board; employees get a redacted view. */}
+        <Route path="live" element={<LiveBoardPage />} />
         <Route path="members" element={<MembersPage />} />
         <Route path="timesheet" element={<TimesheetPage />} />
         <Route path="reports" element={<RequireLead><ReportsPage /></RequireLead>} />

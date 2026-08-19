@@ -5,7 +5,7 @@ import { Avatar } from './Avatar';
 
 const NAV = [
   { to: '/', label: 'Home', end: true, minLead: false },
-  { to: '/live', label: 'Live', end: false, minLead: true },
+  { to: '/live', label: 'Live', end: false, minLead: false },
   { to: '/members', label: 'Members', end: false, minLead: false },
   { to: '/timesheet', label: 'Timesheets', end: false, minLead: false },
   { to: '/reports', label: 'Reports', end: false, minLead: true },

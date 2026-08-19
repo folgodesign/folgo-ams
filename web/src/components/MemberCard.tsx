@@ -8,7 +8,7 @@ import type { BoardMember } from '../hooks/useLiveStream';
  * portrait over a warm surface, name with the surname in Burnt Orange, role in
  * muted grey, status ring around the avatar.
  */
-export function MemberCard({ member, onClick, pulse, orgTz }: { member: BoardMember; onClick: () => void; pulse?: boolean; orgTz: string }) {
+export function MemberCard({ member, onClick, pulse, orgTz, limited }: { member: BoardMember; onClick: () => void; pulse?: boolean; orgTz: string; limited?: boolean }) {
   const meta = statusMeta(member.status);
   const [first, ...rest] = member.name.split(' ');
   const elapsed = member.statusSince ? secondsSince(member.statusSince) : 0;
@@ -46,10 +46,13 @@ export function MemberCard({ member, onClick, pulse, orgTz }: { member: BoardMem
         )}
       </div>
 
-      <div className="mt-3 pt-3 border-t border-border-subtle flex items-center justify-between text-caption uppercase text-text-muted">
-        <span>{member.checkInAt ? `In ${fmtTime(member.checkInAt, member.timezone)}` : 'Not in'}</span>
-        {showLocalTime && <span className="tabular">{fmtTime(new Date().toISOString(), member.timezone)} local</span>}
-      </div>
+      {/* Attendance footer (check-in / local time) is hidden from employees. */}
+      {!limited && (
+        <div className="mt-3 pt-3 border-t border-border-subtle flex items-center justify-between text-caption uppercase text-text-muted">
+          <span>{member.checkInAt ? `In ${fmtTime(member.checkInAt, member.timezone)}` : 'Not in'}</span>
+          {showLocalTime && <span className="tabular">{fmtTime(new Date().toISOString(), member.timezone)} local</span>}
+        </div>
+      )}
     </button>
   );
 }

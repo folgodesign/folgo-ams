@@ -12,8 +12,9 @@ async function hash(p: string) {
  * admin, and a handful of employees with today's sessions/tasks/status so the
  * live board and timesheets have something to show immediately.
  *
- * Login: admin@folgo.studio / folgopulse2026   (super admin)
- *        Any employee: <first>@folgo.studio / folgopulse2026
+ * Login: shahil@folgo.studio / folgopulse2026   (founder / admin — complete view)
+ *        nazil@folgo.studio  / folgopulse2026   (founder / admin — complete view)
+ *        Any employee: <first>@folgo.studio / folgopulse2026 (limited view)
  */
 async function main() {
   const existing = await prisma.organisation.findFirst({ where: { bootstrapped: true } });
@@ -51,21 +52,30 @@ async function main() {
 
   const pw = await hash('folgopulse2026');
 
-  const admin = await prisma.user.create({
+  // The two founders are the only admins — they alone get the complete view.
+  const shahil = await prisma.user.create({
     data: {
-      orgId: org.id, name: 'Ada Menon', email: 'admin@folgo.studio', role: 'super_admin', status: 'active',
-      passwordHash: pw, workScheduleId: schedule.id, teamId: design.id, designation: 'Studio Lead',
+      orgId: org.id, name: 'Shahil', email: 'shahil@folgo.studio', role: 'super_admin', status: 'active',
+      passwordHash: pw, workScheduleId: schedule.id, designation: 'Founder',
       employeeCode: 'FLG-001', timezone: 'Asia/Kolkata', consentVersion: '2026-08-19', consentAt: new Date(),
     },
   });
-  await prisma.team.update({ where: { id: design.id }, data: { leadId: admin.id } });
+  const nazil = await prisma.user.create({
+    data: {
+      orgId: org.id, name: 'Nazil', email: 'nazil@folgo.studio', role: 'super_admin', status: 'active',
+      passwordHash: pw, workScheduleId: schedule.id, designation: 'Founder',
+      employeeCode: 'FLG-002', timezone: 'Asia/Kolkata', consentVersion: '2026-08-19', consentAt: new Date(),
+    },
+  });
+  const admin = shahil; // reporting manager for the demo employees
 
+  // Everyone else is an employee — they see only status + current work of others.
   const employees = [
-    { name: 'Rahul Nair', email: 'rahul@folgo.studio', team: design.id, role: 'employee', designation: 'Senior Designer', code: 'FLG-002', tz: 'Asia/Kolkata' },
-    { name: 'Priya Sharma', email: 'priya@folgo.studio', team: dev.id, role: 'lead', designation: 'Engineering Lead', code: 'FLG-003', tz: 'Asia/Kolkata' },
-    { name: 'Tom Baker', email: 'tom@folgo.studio', team: dev.id, role: 'employee', designation: 'Developer', code: 'FLG-004', tz: 'Europe/London' },
-    { name: 'Sara Khan', email: 'sara@folgo.studio', team: design.id, role: 'employee', designation: 'Copywriter', code: 'FLG-005', tz: 'Asia/Kolkata' },
-    { name: 'Meera Iyer', email: 'meera@folgo.studio', team: accounts.id, role: 'employee', designation: 'Account Manager', code: 'FLG-006', tz: 'Asia/Kolkata' },
+    { name: 'Rahul Nair', email: 'rahul@folgo.studio', team: design.id, role: 'employee', designation: 'Senior Designer', code: 'FLG-003', tz: 'Asia/Kolkata' },
+    { name: 'Priya Sharma', email: 'priya@folgo.studio', team: dev.id, role: 'employee', designation: 'Developer', code: 'FLG-004', tz: 'Asia/Kolkata' },
+    { name: 'Tom Baker', email: 'tom@folgo.studio', team: dev.id, role: 'employee', designation: 'Developer', code: 'FLG-005', tz: 'Europe/London' },
+    { name: 'Sara Khan', email: 'sara@folgo.studio', team: design.id, role: 'employee', designation: 'Copywriter', code: 'FLG-006', tz: 'Asia/Kolkata' },
+    { name: 'Meera Iyer', email: 'meera@folgo.studio', team: accounts.id, role: 'employee', designation: 'Account Manager', code: 'FLG-007', tz: 'Asia/Kolkata' },
   ];
 
   const created = [] as { id: string; name: string }[];
@@ -101,8 +111,8 @@ async function main() {
   }
 
   console.log('Seed complete.');
-  console.log('Super admin: admin@folgo.studio / folgopulse2026');
-  console.log('Employees:   rahul@ / priya@ / tom@ / sara@ / meera@ folgo.studio / folgopulse2026');
+  console.log('Founders (admins): shahil@folgo.studio  &  nazil@folgo.studio  / folgopulse2026');
+  console.log('Employees:         rahul@ / priya@ / tom@ / sara@ / meera@ folgo.studio / folgopulse2026');
 }
 
 main()

@@ -1,22 +1,28 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { asyncHandler } from '../middleware/errors.js';
-import { requireAuth, requireRole } from '../middleware/auth.js';
+import { requireAuth, isPrivileged } from '../middleware/auth.js';
 import { verifyAccessToken } from '../lib/tokens.js';
 import { buildBoard } from '../services/board.js';
 import { addClient } from '../lib/realtime.js';
 
 export const liveRouter = Router();
 
-/** PRD F-4: live board payload. Employees may see the org board by default. */
+/**
+ * PRD F-4: live board payload. Everyone sees the org board, but employees get a
+ * redacted view (status + current task only). Only privileged viewers get
+ * attendance signals and may view historical snapshots via `date`.
+ */
 liveRouter.get(
   '/',
   requireAuth,
   asyncHandler(async (req, res) => {
-    const date = (req.query.date as string) || undefined;
-    const members = await buildBoard(req.auth!.orgId, date);
+    const full = isPrivileged(req.auth!.role);
+    // Historical snapshots are attendance detail — privileged viewers only.
+    const date = full ? (req.query.date as string) || undefined : undefined;
+    const members = await buildBoard(req.auth!.orgId, date, full);
     const workingNow = members.filter((m) => ['WORKING', 'IN_MEETING', 'FOCUS'].includes(m.status)).length;
-    res.json({ members, count: members.length, workingNow, date: date ?? null });
+    res.json({ members, count: members.length, workingNow, date: date ?? null, full });
   }),
 );
 
@@ -29,8 +35,11 @@ liveRouter.get(
   asyncHandler(async (req, res) => {
     const token = req.query.token as string;
     let orgId: string;
+    let full = false;
     try {
-      orgId = verifyAccessToken(token).org;
+      const claims = verifyAccessToken(token);
+      orgId = claims.org;
+      full = isPrivileged(claims.role);
     } catch {
       res.status(401).end();
       return;
@@ -42,7 +51,7 @@ liveRouter.get(
     });
     res.write(`event: ready\ndata: {"ok":true}\n\n`);
     const heartbeat = setInterval(() => res.write(': ping\n\n'), 25000);
-    const remove = addClient(orgId, res);
+    const remove = addClient(orgId, res, full);
     req.on('close', () => {
       clearInterval(heartbeat);
       remove();

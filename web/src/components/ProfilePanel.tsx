@@ -60,7 +60,7 @@ export function ProfilePanel({ member, onClose, canViewDetail, orgTz }: { member
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
-          {tab === 'now' && <NowTab member={member} orgTz={orgTz} />}
+          {tab === 'now' && <NowTab member={member} orgTz={orgTz} full={canViewDetail} />}
           {tab === 'attendance' && canViewDetail && <AttendanceTab userId={member.id} />}
           {tab === 'activity' && canViewDetail && <ActivityTab userId={member.id} />}
           {tab === 'profile' && <ProfileTab member={member} />}
@@ -70,11 +70,11 @@ export function ProfilePanel({ member, onClose, canViewDetail, orgTz }: { member
   );
 }
 
-function NowTab({ member, orgTz }: { member: BoardMember; orgTz: string }) {
+function NowTab({ member, orgTz, full }: { member: BoardMember; orgTz: string; full: boolean }) {
   const showLocal = member.timezone !== orgTz;
   return (
     <div className="space-y-4">
-      <Row label="Check-in" value={member.checkInAt ? fmtTime(member.checkInAt, member.timezone) : 'Not checked in'} />
+      {full && <Row label="Check-in" value={member.checkInAt ? fmtTime(member.checkInAt, member.timezone) : 'Not checked in'} />}
       {showLocal && <Row label="Local time" value={`${fmtTime(new Date().toISOString(), member.timezone)} (${member.timezone})`} />}
       <div>
         <div className="text-caption uppercase text-text-muted mb-1">Current task</div>

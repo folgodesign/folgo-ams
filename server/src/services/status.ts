@@ -39,7 +39,7 @@ export async function publishMember(orgId: string, userId: string) {
     include: { intervals: true, client: true, project: true },
     orderBy: { startedAt: 'desc' },
   });
-  publish(orgId, 'member', {
+  const base = {
     id: u.id,
     name: u.name,
     avatarUrl: u.avatarUrl,
@@ -48,10 +48,16 @@ export async function publishMember(orgId: string, userId: string) {
     teamName: u.team?.name ?? null,
     timezone: u.timezone || u.org.timezone,
     status: status.status,
-    statusSince: status.since?.toISOString() ?? null,
     currentTask: task?.title ?? null,
     currentTaskSeconds: task ? liveSeconds(task) : null,
     client: task?.client?.name ?? null,
     project: task?.project?.name ?? null,
-  });
+  };
+  // Full payload for privileged viewers; employees don't get status elapsed.
+  publish(
+    orgId,
+    'member',
+    { ...base, statusSince: status.since?.toISOString() ?? null, checkInAt: null },
+    { ...base, statusSince: null, checkInAt: null },
+  );
 }

@@ -161,16 +161,24 @@ usersRouter.post(
   }),
 );
 
-/** PRD F-4.4 / F-3.6: a user's attendance range and profile. */
+/**
+ * PRD F-4.4 / F-3.6: a user's profile detail — privileged viewers only, and
+ * never exposing secret columns (password hash, TOTP secret).
+ */
 usersRouter.get(
   '/:id',
+  requireRole('lead'),
   asyncHandler(async (req, res) => {
     const user = await prisma.user.findFirst({
       where: { id: req.params.id, orgId: req.auth!.orgId },
-      include: { team: true, workSchedule: true, manager: { select: { name: true } } as never },
+      include: { team: true, workSchedule: true },
     });
     if (!user) throw new HttpError(404, 'user not found');
-    res.json(user);
+    const manager = user.managerId
+      ? await prisma.user.findUnique({ where: { id: user.managerId }, select: { name: true } })
+      : null;
+    const { passwordHash, totpSecret, ...safe } = user;
+    res.json({ ...safe, managerName: manager?.name ?? null });
   }),
 );
 

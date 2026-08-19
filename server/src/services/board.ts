@@ -31,9 +31,11 @@ export interface BoardMember {
 
 /**
  * Build the live-board payload for an org (PRD F-4.1..F-4.3). `date` selects a
- * historical snapshot; defaults to today.
+ * historical snapshot; defaults to today. When `full` is false (employee
+ * viewer), attendance signals — check-in time and status elapsed — are stripped
+ * so employees see only status + current active work, never others' hours.
  */
-export async function buildBoard(orgId: string, date?: string): Promise<BoardMember[]> {
+export async function buildBoard(orgId: string, date?: string, full = true): Promise<BoardMember[]> {
   const org = await prisma.organisation.findUnique({ where: { id: orgId } });
   const users = await prisma.user.findMany({
     where: { orgId, status: { in: ['active', 'deactivated'] } },
@@ -67,12 +69,12 @@ export async function buildBoard(orgId: string, date?: string): Promise<BoardMem
       teamName: u.team?.name ?? null,
       timezone: tz,
       status: u.status === 'deactivated' ? 'CHECKED_OUT' : status.status,
-      statusSince: status.since ? status.since.toISOString() : null,
+      statusSince: full && status.since ? status.since.toISOString() : null,
       currentTask: task?.title ?? null,
       currentTaskSeconds: task ? liveSeconds(task) : null,
       client: task?.client?.name ?? null,
       project: task?.project?.name ?? null,
-      checkInAt: attendanceDay?.firstCheckIn ? attendanceDay.firstCheckIn.toISOString() : null,
+      checkInAt: full && attendanceDay?.firstCheckIn ? attendanceDay.firstCheckIn.toISOString() : null,
     });
   }
   return members;

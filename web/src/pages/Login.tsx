@@ -9,7 +9,7 @@ export function LoginPage() {
   const { user, login, setSession } = useAuth();
   const navigate = useNavigate();
   const [bootstrapped, setBootstrapped] = useState<boolean | null>(null);
-  const [email, setEmail] = useState('admin@folgo.studio');
+  const [email, setEmail] = useState('shahil@folgo.studio');
   const [password, setPassword] = useState('folgopulse2026');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);

@@ -71,13 +71,21 @@ backend so the refresh cookie stays first-party.
 
 ### Demo logins (from the seed)
 
-| Role | Email | Password |
-|---|---|---|
-| Super Admin | `admin@folgo.studio` | `folgopulse2026` |
-| Team Lead | `priya@folgo.studio` | `folgopulse2026` |
-| Employee | `rahul@folgo.studio` (or `tom@`, `sara@`, `meera@`) | `folgopulse2026` |
+| Role | Email | Password | Sees |
+|---|---|---|---|
+| Founder / Admin | `shahil@folgo.studio` | `folgopulse2026` | Everything (complete view) |
+| Founder / Admin | `nazil@folgo.studio` | `folgopulse2026` | Everything (complete view) |
+| Employee | `rahul@folgo.studio` (or `priya@`, `tom@`, `sara@`, `meera@`) | `folgopulse2026` | Own data + limited live board |
 
-The login form is pre-filled with the super-admin credentials. On a **fresh
+**Who sees what.** The two founders (Shahil & Nazil) are the only admins and get the
+complete view — the full live board with check-in times, everyone's attendance and
+timesheets, reports, corrections, audit log, and invites. **Employees see a limited
+live board: everyone's current status and active task only** — no check-in times, no
+work-hours, no attendance history, and no access to anyone else's timesheet or task
+log (those endpoints return 403). This is enforced server-side, not just hidden in the
+UI, and the SSE realtime stream is redacted per viewer.
+
+The login form is pre-filled with a founder's credentials. On a **fresh
 database** (delete `server/prisma/dev.db` before seeding), the login screen shows
 the one-time bootstrap wizard instead.
 
