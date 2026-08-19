@@ -14,6 +14,7 @@ export function MembersPage() {
   const { isAdmin } = useAuth();
   const [q, setQ] = useState('');
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [editing, setEditing] = useState<Member | null>(null);
   const { data, isLoading } = useQuery({ queryKey: ['members'], queryFn: () => api.get<Member[]>('/users') });
 
   if (isLoading) return <Spinner />;
@@ -40,10 +41,15 @@ export function MembersPage() {
             <Card key={m.id} className={`p-4 ${m.status === 'deactivated' ? 'opacity-50' : ''}`}>
               <div className="flex items-center gap-3">
                 <Avatar name={m.name} avatarUrl={m.avatarUrl} size={52} />
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="font-medium truncate">{m.name}</div>
                   <div className="text-sm text-text-muted truncate">{m.designation ?? '—'}</div>
                 </div>
+                {isAdmin && (
+                  <button onClick={() => setEditing(m)} title="Edit member" className="text-sm text-text-muted hover:text-accent shrink-0">
+                    Edit
+                  </button>
+                )}
               </div>
               <div className="mt-3 pt-3 border-t border-border-subtle text-sm text-text-muted space-y-1">
                 <div className="truncate">{m.email}</div>
@@ -58,6 +64,92 @@ export function MembersPage() {
       )}
 
       {inviteOpen && <InviteModal onClose={() => setInviteOpen(false)} />}
+      {editing && <EditMemberModal member={editing} onClose={() => setEditing(null)} />}
+    </div>
+  );
+}
+
+function EditMemberModal({ member, onClose }: { member: Member; onClose: () => void }) {
+  const qc = useQueryClient();
+  const { data: teams } = useQuery({ queryKey: ['teams'], queryFn: () => api.get<{ id: string; name: string }[]>('/settings/teams') });
+  const [form, setForm] = useState({
+    name: member.name,
+    designation: member.designation ?? '',
+    role: member.role,
+    teamId: member.teamId ?? '',
+  });
+  const [error, setError] = useState('');
+  const set = (k: string) => (e: any) => setForm({ ...form, [k]: e.target.value });
+
+  const save = useMutation({
+    mutationFn: () =>
+      api.patch(`/users/${member.id}`, {
+        name: form.name.trim(),
+        designation: form.designation || undefined,
+        role: form.role,
+        teamId: form.teamId || null,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['members'] });
+      qc.invalidateQueries({ queryKey: ['live'] });
+      onClose();
+    },
+    onError: () => setError('Could not save. Please try again.'),
+  });
+
+  const deactivate = useMutation({
+    mutationFn: () => api.del(`/users/${member.id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['members'] });
+      onClose();
+    },
+  });
+  const reactivate = useMutation({
+    mutationFn: () => api.post(`/users/${member.id}/reactivate`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['members'] });
+      onClose();
+    },
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black/60 grid place-items-center z-50 p-4" onClick={onClose}>
+      <Card className="w-full max-w-md p-6 bg-bg-raised" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-h2 mb-4">Edit {member.name.split(' ')[0]}</h3>
+        <div className="space-y-3">
+          <Field label="Name"><Input value={form.name} onChange={set('name')} /></Field>
+          <Field label="Designation"><Input value={form.designation} onChange={set('designation')} /></Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Role">
+              <Select value={form.role} onChange={set('role')}>
+                <option value="employee">Employee</option>
+                <option value="lead">Team Lead</option>
+                <option value="admin">Admin</option>
+                <option value="super_admin">Super Admin</option>
+              </Select>
+            </Field>
+            <Field label="Team">
+              <Select value={form.teamId} onChange={set('teamId')}>
+                <option value="">—</option>
+                {teams?.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </Select>
+            </Field>
+          </div>
+        </div>
+        {error && <div className="mt-4 text-sm text-[#F4713F]">{error}</div>}
+        <div className="flex gap-2 mt-6">
+          {member.status === 'deactivated' ? (
+            <Button variant="outline" onClick={() => reactivate.mutate()}>Reactivate</Button>
+          ) : (
+            <Button variant="danger" onClick={() => deactivate.mutate()}>Deactivate</Button>
+          )}
+          <div className="flex-1" />
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button onClick={() => save.mutate()} disabled={save.isPending || !form.name.trim()}>
+            {save.isPending ? 'Saving…' : 'Save'}
+          </Button>
+        </div>
+      </Card>
     </div>
   );
 }

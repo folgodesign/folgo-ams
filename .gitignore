@@ -20,3 +20,6 @@ server/prisma/dev.db*
 
 # Prisma generated client (regenerated on install)
 server/node_modules/.prisma/
+
+# TS build cache
+*.tsbuildinfo
