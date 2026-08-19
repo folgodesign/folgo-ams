@@ -15,7 +15,7 @@ working, on what, and for how long. Self-reported status over covert monitoring.
 
 | PRD area | Status |
 |---|---|
-| **§4.1 Auth** — invite-only (no public signup), Argon2id passwords, HIBP breach check, 15-min JWT + rotating refresh token with **reuse detection**, one-time super-admin bootstrap, versioned consent, deactivate/rehire | ✅ |
+| **§4.1 Auth** — invite-only (no public signup), **email + password** (any email address, including personal Gmail), Argon2id passwords, HIBP breach check, 15-min JWT + rotating refresh token with **reuse detection**, one-time super-admin bootstrap, versioned consent, deactivate/rehire | ✅ |
 | **§4.2 Check-in/out** — server-stamped times, idempotent double-tap, breaks, per-employee timezone, auto-checkout sweep, no geolocation | ✅ |
 | **§4.3 Task log** — one-keystroke start, single in-progress task, pause/complete/switch/carry-over, interval-based durations, suggestions, end-of-day summary, admin comments (read, never silently edit), **admin task assignment** | ✅ |
 | **§4.4 Live board** — card grid with status rings, filter chips, 480px slide-over profile panel (Now/Attendance/Activity/Profile), **SSE realtime** with pulse animation + reconnect indicator, historical date snapshots, wall/kiosk mode | ✅ |
@@ -25,10 +25,11 @@ working, on what, and for how long. Self-reported status over covert monitoring.
 | **§4.9 Directory / §4.10 Audit log** | ✅ |
 | **§7 Design system** — dark-first Folgo brand tokens, reserved Burnt Orange accent, redundant status ring encoding, tabular timers | ✅ |
 
-Deliberately out of scope for this build (PRD Phase 2/3 or non-goals): Google SSO
-is stubbed at the UI (the server-side hosted-domain check is specced but not wired
-to a live Google client), email delivery (invite links are surfaced in-app instead
-of emailed), TOTP 2FA, PWA offline sync, and native apps.
+Authentication is **email + password only** — any email address works, including
+personal Gmail accounts (there is no Workspace-domain restriction). Google SSO is
+not included. Also out of scope for this build (PRD Phase 2/3 or non-goals): email
+delivery (invite links are surfaced in-app instead of emailed), TOTP 2FA, PWA
+offline sync, and native apps.
 
 ---
 

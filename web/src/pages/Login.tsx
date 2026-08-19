@@ -73,10 +73,6 @@ export function LoginPage() {
             {busy ? 'Signing in…' : 'Sign in'}
           </Button>
 
-          <button type="button" className="w-full mt-3 text-sm text-text-muted hover:text-text-secondary" title="SSO is stubbed in this build">
-            Continue with Google Workspace
-          </button>
-
           <p className="mt-8 text-caption uppercase text-text-muted text-center">
             No public signup · accounts are created by an admin
           </p>
