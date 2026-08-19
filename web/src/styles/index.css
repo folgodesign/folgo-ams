@@ -1,0 +1,52 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #0a0808;
+  color: #f0ece3;
+  font-family: 'Neue Montreal', Inter, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Tabular figures for all timers and timesheet numbers (PRD §7.1). */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Burnt-orange focus ring, reserved for focus/active (PRD §7.1). */
+*:focus-visible {
+  outline: 2px solid rgba(235, 94, 41, 0.45);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #3a2e2f;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* The reserved brand gradient — login, empty states, kiosk header only. */
+.folgo-gradient {
+  background: linear-gradient(180deg, #eb5e29 0%, #2d2324 62%, #000000 100%);
+}

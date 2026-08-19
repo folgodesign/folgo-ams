@@ -1,0 +1,375 @@
+// Folgo Pulse data model — see PRD §5.
+// SQLite for self-contained dev/demo; the schema is Postgres-portable
+// (swap provider to "postgresql" and set DATABASE_URL). Enum-like columns
+// are stored as strings and validated in the application layer; array-ish
+// columns (e.g. working_days) are stored as JSON strings.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Organisation {
+  id           String   @id @default(cuid())
+  name         String
+  logoUrl      String?
+  timezone     String   @default("Asia/Kolkata")
+  settingsJson String   @default("{}")
+  bootstrapped Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  users         User[]
+  teams         Team[]
+  schedules     WorkSchedule[]
+  clients       Client[]
+  projects      Project[]
+  leaveTypes    LeaveType[]
+  holidays      Holiday[]
+  tasks         Task[]
+  auditLogs     AuditLog[]
+}
+
+model User {
+  id             String    @id @default(cuid())
+  orgId          String
+  name           String
+  email          String    @unique
+  phone          String?
+  avatarUrl      String?
+  employeeCode   String?
+  designation    String?
+  teamId         String?
+  managerId      String?
+  role           String    @default("employee") // employee | lead | admin | super_admin
+  workScheduleId String?
+  timezone       String? // per-employee tz (PRD F-2.4); falls back to org tz
+  dateJoined     DateTime  @default(now())
+  status         String    @default("invited") // active | invited | deactivated
+  passwordHash   String?
+  ssoProvider    String?
+  totpSecret     String?
+  consentVersion String?
+  consentAt      DateTime?
+  lastSeenAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  org           Organisation  @relation(fields: [orgId], references: [id])
+  team          Team?         @relation("TeamMembers", fields: [teamId], references: [id])
+  workSchedule  WorkSchedule? @relation(fields: [workScheduleId], references: [id])
+
+  invites        Invite[]
+  sessions       Session[]
+  attendanceDays AttendanceDay[]
+  statusUpdates  StatusUpdate[]
+  tasks          Task[]
+  dailySummaries DailySummary[]
+  leaveRequests  LeaveRequest[]
+  regularisations RegularisationRequest[]
+  notifications  Notification[]
+  refreshTokens  RefreshToken[]
+  teamsLed       Team[]        @relation("TeamLead")
+
+  @@index([orgId, status])
+}
+
+model Team {
+  id      String  @id @default(cuid())
+  orgId   String
+  name    String
+  leadId  String?
+
+  org     Organisation @relation(fields: [orgId], references: [id])
+  lead    User?        @relation("TeamLead", fields: [leadId], references: [id])
+  members User[]       @relation("TeamMembers")
+}
+
+model WorkSchedule {
+  id                    String @id @default(cuid())
+  orgId                 String
+  name                  String
+  workingDays           String @default("[1,2,3,4,5]") // JSON array, 0=Sun..6=Sat
+  startTime             String @default("10:00")
+  endTime               String @default("19:00")
+  requiredHours         Float  @default(8)
+  graceMinutes          Int    @default(15)
+  halfDayThresholdHours Float  @default(4)
+  breakAllowanceMinutes Int    @default(60)
+  autoDeductBreakMinutes Int   @default(0)
+
+  org   Organisation @relation(fields: [orgId], references: [id])
+  users User[]
+}
+
+model Invite {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model RefreshToken {
+  id           String    @id @default(cuid())
+  userId       String
+  familyId     String
+  tokenHash    String    @unique
+  expiresAt    DateTime
+  usedAt       DateTime?
+  revokedAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, familyId])
+}
+
+model AttendanceDay {
+  id                 String   @id @default(cuid())
+  userId             String
+  date               String // YYYY-MM-DD in org/user timezone
+  firstCheckIn       DateTime?
+  lastCheckOut       DateTime?
+  totalWorkedMinutes Int      @default(0)
+  totalBreakMinutes  Int      @default(0)
+  overtimeMinutes    Int      @default(0)
+  classification     String   @default("absent")
+  isEdited           Boolean  @default(false)
+  editedBy           String?
+  editReason         String?
+  updatedAt          DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id])
+  sessions Session[]
+  regularisations RegularisationRequest[]
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+model Session {
+  id              String    @id @default(cuid())
+  userId          String
+  attendanceDayId String
+  checkInAt       DateTime  @default(now())
+  checkOutAt      DateTime?
+  checkInIp       String?
+  checkOutIp      String?
+  device          String?
+  autoClosed      Boolean   @default(false)
+  offlineSynced   Boolean   @default(false)
+  note            String?
+
+  user          User          @relation(fields: [userId], references: [id])
+  attendanceDay AttendanceDay @relation(fields: [attendanceDayId], references: [id])
+  breaks        Break[]
+  statusUpdates StatusUpdate[]
+
+  @@index([userId, checkInAt])
+}
+
+model Break {
+  id        String    @id @default(cuid())
+  sessionId String
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+  type      String    @default("short") // lunch | short | personal
+
+  session Session @relation(fields: [sessionId], references: [id])
+}
+
+model StatusUpdate {
+  id        String    @id @default(cuid())
+  userId    String
+  sessionId String?
+  status    String // WORKING | ON_BREAK | IN_MEETING | FOCUS | AWAY | CHECKED_OUT | ON_LEAVE
+  backInMinutes Int?
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+  note      String?
+
+  user    User     @relation(fields: [userId], references: [id])
+  session Session? @relation(fields: [sessionId], references: [id])
+
+  @@index([userId, startedAt])
+}
+
+model Task {
+  id                 String    @id @default(cuid())
+  userId             String
+  orgId              String
+  title              String
+  note               String?
+  clientId           String?
+  projectId          String?
+  state              String    @default("in_progress") // assigned | in_progress | paused | completed | carried_over | cancelled
+  startedAt          DateTime  @default(now())
+  endedAt            DateTime?
+  accumulatedSeconds Int       @default(0)
+  carriedFromTaskId  String?
+  createdVia         String    @default("web")
+  assignedById       String? // set when an admin assigns this task to the user
+  assignedAt         DateTime?
+  editedAt           DateTime?
+  editedBy           String?
+
+  user      User           @relation(fields: [userId], references: [id])
+  org       Organisation   @relation(fields: [orgId], references: [id])
+  client    Client?        @relation(fields: [clientId], references: [id])
+  project   Project?       @relation(fields: [projectId], references: [id])
+  intervals TaskInterval[]
+  comments  TaskComment[]
+
+  @@index([userId, startedAt])
+  @@index([orgId, startedAt])
+}
+
+model TaskInterval {
+  id        String    @id @default(cuid())
+  taskId    String
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+
+  task Task @relation(fields: [taskId], references: [id])
+
+  @@index([taskId])
+}
+
+model TaskComment {
+  id        String   @id @default(cuid())
+  taskId    String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id])
+}
+
+model DailySummary {
+  id          String    @id @default(cuid())
+  userId      String
+  date        String
+  note        String?
+  confirmedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, date])
+}
+
+model Client {
+  id       String  @id @default(cuid())
+  orgId    String
+  name     String
+  colour   String  @default("#EB5E29")
+  isActive Boolean @default(true)
+
+  org      Organisation @relation(fields: [orgId], references: [id])
+  projects Project[]
+  tasks    Task[]
+}
+
+model Project {
+  id       String  @id @default(cuid())
+  orgId    String
+  clientId String?
+  name     String
+  colour   String  @default("#5B9DFF")
+  isActive Boolean @default(true)
+
+  org    Organisation @relation(fields: [orgId], references: [id])
+  client Client?      @relation(fields: [clientId], references: [id])
+  tasks  Task[]
+}
+
+model LeaveType {
+  id          String  @id @default(cuid())
+  orgId       String
+  name        String
+  annualQuota Int     @default(0)
+  isPaid      Boolean @default(true)
+
+  org      Organisation   @relation(fields: [orgId], references: [id])
+  requests LeaveRequest[]
+}
+
+model LeaveRequest {
+  id           String    @id @default(cuid())
+  userId       String
+  leaveTypeId  String
+  startDate    String
+  endDate      String
+  isHalfDay    Boolean   @default(false)
+  reason       String?
+  status       String    @default("pending") // pending | approved | rejected | cancelled
+  decidedBy    String?
+  decidedAt    DateTime?
+  decisionNote String?
+  createdAt    DateTime  @default(now())
+
+  user      User      @relation(fields: [userId], references: [id])
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id])
+}
+
+model RegularisationRequest {
+  id               String    @id @default(cuid())
+  userId           String
+  attendanceDayId  String?
+  date             String
+  proposedCheckIn  DateTime?
+  proposedCheckOut DateTime?
+  reason           String?
+  status           String    @default("pending")
+  decidedBy        String?
+  decidedAt        DateTime?
+  createdAt        DateTime  @default(now())
+
+  user          User           @relation(fields: [userId], references: [id])
+  attendanceDay AttendanceDay? @relation(fields: [attendanceDayId], references: [id])
+}
+
+model Holiday {
+  id     String @id @default(cuid())
+  orgId  String
+  date   String
+  name   String
+  region String?
+
+  org Organisation @relation(fields: [orgId], references: [id])
+}
+
+model Notification {
+  id          String    @id @default(cuid())
+  userId      String
+  type        String
+  payloadJson String    @default("{}")
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  orgId      String
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String?
+  beforeJson String?
+  afterJson  String?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  org Organisation @relation(fields: [orgId], references: [id])
+
+  @@index([orgId, createdAt])
+}
