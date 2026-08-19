@@ -11,6 +11,8 @@ RUN npm run build
 
 # ---- build the backend ----
 FROM node:20-bookworm-slim AS server
+# OpenSSL is required by Prisma's engines (the slim image omits it).
+RUN apt-get update -y && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /server
 COPY server/package*.json ./
 RUN npm ci
@@ -19,6 +21,8 @@ RUN npx prisma generate && npm run build
 
 # ---- runtime ----
 FROM node:20-bookworm-slim AS runtime
+# Prisma's schema engine (prisma db push) and query engine need OpenSSL too.
+RUN apt-get update -y && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=production
 WORKDIR /app/server
 COPY --from=server /server/node_modules ./node_modules
