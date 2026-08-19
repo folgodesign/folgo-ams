@@ -163,6 +163,45 @@ usersRouter.post(
 );
 
 /**
+ * Permanently delete a user and all their data (super admin only). Unlike
+ * deactivation this removes the account entirely — used to clean up mistaken
+ * invites. Cannot delete yourself.
+ */
+usersRouter.delete(
+  '/:id/permanent',
+  requireRole('super_admin'),
+  asyncHandler(async (req, res) => {
+    const userId = req.params.id;
+    if (userId === req.auth!.userId) throw new HttpError(400, 'you cannot delete your own account', 'cannot_delete_self');
+    const user = await prisma.user.findFirst({ where: { id: userId, orgId: req.auth!.orgId } });
+    if (!user) throw new HttpError(404, 'user not found');
+
+    // Remove children first (no ON DELETE CASCADE in the schema), in a
+    // transaction so a partial delete can never leave orphans.
+    await prisma.$transaction([
+      prisma.team.updateMany({ where: { leadId: userId }, data: { leadId: null } }),
+      prisma.taskComment.deleteMany({ where: { task: { userId } } }),
+      prisma.taskInterval.deleteMany({ where: { task: { userId } } }),
+      prisma.task.deleteMany({ where: { userId } }),
+      prisma.break.deleteMany({ where: { session: { userId } } }),
+      prisma.statusUpdate.deleteMany({ where: { userId } }),
+      prisma.regularisationRequest.deleteMany({ where: { userId } }),
+      prisma.session.deleteMany({ where: { userId } }),
+      prisma.attendanceDay.deleteMany({ where: { userId } }),
+      prisma.dailySummary.deleteMany({ where: { userId } }),
+      prisma.leaveRequest.deleteMany({ where: { userId } }),
+      prisma.notification.deleteMany({ where: { userId } }),
+      prisma.invite.deleteMany({ where: { userId } }),
+      prisma.refreshToken.deleteMany({ where: { userId } }),
+      prisma.user.updateMany({ where: { managerId: userId }, data: { managerId: null } }),
+      prisma.user.delete({ where: { id: userId } }),
+    ]);
+    await audit({ orgId: req.auth!.orgId, actorId: req.auth!.userId, action: 'delete_user_permanent', entityType: 'user', entityId: userId, before: { email: user.email, name: user.name }, ip: clientIp(req) });
+    res.json({ ok: true });
+  }),
+);
+
+/**
  * PRD F-4.4 / F-3.6: a user's profile detail — privileged viewers only, and
  * never exposing secret columns (password hash, TOTP secret).
  */
