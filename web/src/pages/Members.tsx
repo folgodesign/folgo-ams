@@ -71,6 +71,8 @@ export function MembersPage() {
 
 function EditMemberModal({ member, onClose }: { member: Member; onClose: () => void }) {
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === 'super_admin';
   const { data: teams } = useQuery({ queryKey: ['teams'], queryFn: () => api.get<{ id: string; name: string }[]>('/settings/teams') });
   const [form, setForm] = useState({
     name: member.name,
@@ -119,6 +121,21 @@ function EditMemberModal({ member, onClose }: { member: Member; onClose: () => v
       onClose();
     },
   });
+  const remove = useMutation({
+    mutationFn: () => api.del(`/users/${member.id}/permanent`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['members'] });
+      qc.invalidateQueries({ queryKey: ['live'] });
+      onClose();
+    },
+    onError: () => setError('Could not delete this account.'),
+  });
+
+  function confirmDelete() {
+    if (window.confirm(`Permanently delete ${member.name} (${member.email})? This removes the account and all their data and cannot be undone.`)) {
+      remove.mutate();
+    }
+  }
 
   return (
     <div className="fixed inset-0 bg-black/60 grid place-items-center z-50 p-4" onClick={onClose}>
@@ -179,6 +196,15 @@ function EditMemberModal({ member, onClose }: { member: Member; onClose: () => v
             {save.isPending ? 'Saving…' : 'Save'}
           </Button>
         </div>
+
+        {isSuperAdmin && member.id !== user?.id && (
+          <div className="mt-4 pt-4 border-t border-border-subtle">
+            <button onClick={confirmDelete} disabled={remove.isPending} className="text-sm text-[#F4713F] hover:underline">
+              {remove.isPending ? 'Deleting…' : 'Delete permanently'}
+            </button>
+            <p className="text-caption uppercase text-text-muted mt-1">Removes the account and all its data — cannot be undone.</p>
+          </div>
+        )}
       </Card>
     </div>
   );
