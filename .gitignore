@@ -1,0 +1,22 @@
+node_modules/
+dist/
+build/
+*.log
+
+# Local env & secrets
+.env
+.env.local
+.env.*.local
+
+# SQLite dev database
+*.db
+*.db-journal
+server/prisma/dev.db*
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
+
+# Prisma generated client (regenerated on install)
+server/node_modules/.prisma/
