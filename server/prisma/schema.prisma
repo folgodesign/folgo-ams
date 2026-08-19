@@ -6,7 +6,11 @@
 // get a Postgres instance, or point DATABASE_URL at any Postgres.
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // "native" covers local dev; the Debian/OpenSSL-3 target matches the
+  // production container (node:20-bookworm-slim + openssl), so db push and
+  // queries find the right engine at runtime.
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
