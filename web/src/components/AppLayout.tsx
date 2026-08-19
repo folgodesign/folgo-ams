@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { AppMark, Wordmark } from './Logo';
 import { Avatar } from './Avatar';
+import { ProfileModal } from './ProfileModal';
 
 const NAV = [
   { to: '/', label: 'Home', end: true, minLead: false },
@@ -17,6 +19,7 @@ const NAV = [
 export function AppLayout() {
   const { user, isLead, logout } = useAuth();
   const navigate = useNavigate();
+  const [profileOpen, setProfileOpen] = useState(false);
 
   return (
     <div className="h-screen flex bg-bg-base text-text-primary overflow-hidden">
@@ -60,19 +63,25 @@ export function AppLayout() {
               ))}
             </nav>
           </div>
-          <div className="flex items-center gap-3 shrink-0">
+          <button
+            onClick={() => setProfileOpen(true)}
+            title="Edit my profile"
+            className="flex items-center gap-3 shrink-0 rounded-md px-1.5 py-1 hover:bg-bg-hover transition-colors"
+          >
             <div className="text-right hidden md:block">
               <div className="text-sm leading-tight">{user?.name}</div>
               <div className="text-caption uppercase text-text-muted">{user?.role.replace('_', ' ')}</div>
             </div>
             <Avatar name={user?.name ?? '?'} avatarUrl={user?.avatarUrl} size={36} />
-          </div>
+          </button>
         </header>
 
         <main className="flex-1 overflow-y-auto">
           <Outlet />
         </main>
       </div>
+
+      {profileOpen && <ProfileModal onClose={() => setProfileOpen(false)} />}
     </div>
   );
 }

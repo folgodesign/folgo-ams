@@ -19,6 +19,7 @@ interface AuthState {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   setSession: (access: string, user: User) => void;
+  refreshUser: () => Promise<void>;
   isAdmin: boolean;
   isLead: boolean;
 }
@@ -53,6 +54,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(u);
   };
 
+  const refreshUser = async () => {
+    try {
+      setUser(await api.get<User>('/me'));
+    } catch {
+      /* ignore */
+    }
+  };
+
   const login = async (email: string, password: string) => {
     const data = await api.post<{ access: string; user: User }>('/auth/login', { email, password });
     setSession(data.access, data.user);
@@ -69,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, login, logout, setSession, isAdmin: rank >= 2, isLead: rank >= 1 }}
+      value={{ user, loading, login, logout, setSession, refreshUser, isAdmin: rank >= 2, isLead: rank >= 1 }}
     >
       {children}
     </AuthContext.Provider>
