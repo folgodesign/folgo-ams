@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { Avatar } from './Avatar';
-import { Badge, Spinner } from './ui';
+import { Badge, Button, Input, Select, Spinner } from './ui';
 import { statusMeta, classificationMeta } from '../lib/status';
 import { fmtDate, fmtDuration, fmtMinutes, fmtTime } from '../lib/format';
 import type { BoardMember } from '../hooks/useLiveStream';
@@ -11,6 +11,7 @@ type Tab = 'now' | 'attendance' | 'activity' | 'profile';
 
 export function ProfilePanel({ member, onClose, canViewDetail, orgTz }: { member: BoardMember; onClose: () => void; canViewDetail: boolean; orgTz: string }) {
   const [tab, setTab] = useState<Tab>('now');
+  const [assigning, setAssigning] = useState(false);
   const meta = statusMeta(member.status);
 
   useEffect(() => {
@@ -40,12 +41,22 @@ export function ProfilePanel({ member, onClose, canViewDetail, orgTz }: { member
             </div>
             <button onClick={onClose} className="text-text-muted hover:text-text-primary text-xl leading-none" aria-label="Close">✕</button>
           </div>
-          <div className="flex gap-2 mt-4">
+          <div className="flex gap-2 mt-4 items-center">
             <a href="#" onClick={(e) => e.preventDefault()} className="text-sm text-text-secondary hover:text-accent">Message</a>
             <span className="text-border-strong">·</span>
             <button onClick={() => navigator.clipboard?.writeText(`${location.origin}/members?id=${member.id}`)} className="text-sm text-text-secondary hover:text-accent">Copy link</button>
+            {canViewDetail && (
+              <>
+                <span className="text-border-strong">·</span>
+                <button onClick={() => setAssigning((v) => !v)} className="text-sm text-accent hover:text-accent-hover">＋ Assign task</button>
+              </>
+            )}
           </div>
         </div>
+
+        {assigning && canViewDetail && (
+          <AssignTaskForm userId={member.id} name={member.name} onDone={() => setAssigning(false)} />
+        )}
 
         <div className="flex border-b border-border-subtle px-6">
           {tabs.map((t) => (
@@ -152,6 +163,64 @@ function ProfileTab({ member }: { member: BoardMember }) {
       <Row label="Team" value={member.teamName ?? '—'} />
       <Row label="Designation" value={member.designation ?? '—'} />
       <Row label="Timezone" value={member.timezone} />
+    </div>
+  );
+}
+
+function AssignTaskForm({ userId, name, onDone }: { userId: string; name: string; onDone: () => void }) {
+  const qc = useQueryClient();
+  const [title, setTitle] = useState('');
+  const [note, setNote] = useState('');
+  const [clientId, setClientId] = useState('');
+  const [projectId, setProjectId] = useState('');
+  const [done, setDone] = useState(false);
+  const { data: clients } = useQuery({ queryKey: ['clients'], queryFn: () => api.get<{ id: string; name: string }[]>('/clients') });
+  const { data: projects } = useQuery({ queryKey: ['projects'], queryFn: () => api.get<{ id: string; name: string }[]>('/projects') });
+
+  const assign = useMutation({
+    mutationFn: () =>
+      api.post(`/users/${userId}/assign-task`, {
+        title: title.trim(),
+        note: note || undefined,
+        clientId: clientId || undefined,
+        projectId: projectId || undefined,
+      }),
+    onSuccess: () => {
+      setDone(true);
+      setTitle('');
+      setNote('');
+      qc.invalidateQueries({ queryKey: ['user-tasks', userId] });
+      setTimeout(onDone, 1200);
+    },
+  });
+
+  return (
+    <div className="px-6 py-4 border-b border-border-subtle bg-bg-surface">
+      <div className="text-caption uppercase text-text-muted mb-2">Assign a task to {name.split(' ')[0]}</div>
+      {done ? (
+        <div className="text-sm text-status-working">✓ Assigned — it's now in their list to start.</div>
+      ) : (
+        <div className="space-y-2">
+          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Task title" maxLength={140} />
+          <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note / brief (optional)" />
+          <div className="grid grid-cols-2 gap-2">
+            <Select value={clientId} onChange={(e) => setClientId(e.target.value)}>
+              <option value="">Client…</option>
+              {clients?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </Select>
+            <Select value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+              <option value="">Project…</option>
+              {projects?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </Select>
+          </div>
+          <div className="flex gap-2 pt-1">
+            <Button variant="ghost" className="flex-1" onClick={onDone}>Cancel</Button>
+            <Button className="flex-1" onClick={() => assign.mutate()} disabled={assign.isPending || !title.trim()}>
+              {assign.isPending ? 'Assigning…' : 'Assign'}
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

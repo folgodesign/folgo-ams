@@ -7,7 +7,7 @@ import { generateToken, hashToken } from '../lib/crypto.js';
 import { config } from '../lib/config.js';
 import { audit } from '../lib/audit.js';
 import { revokeAllUserTokens } from '../lib/tokens.js';
-import { liveSeconds } from '../services/tasks.js';
+import { liveSeconds, assignTask } from '../services/tasks.js';
 
 export const usersRouter = Router();
 usersRouter.use(requireAuth);
@@ -218,6 +218,40 @@ usersRouter.get(
         comments: t.comments,
       })),
     );
+  }),
+);
+
+/** Admin assigns a task to an employee; it lands in their list to Start. */
+usersRouter.post(
+  '/:id/assign-task',
+  requireRole('admin'),
+  asyncHandler(async (req, res) => {
+    const body = z
+      .object({
+        title: z.string().min(1).max(140),
+        note: z.string().max(500).optional(),
+        clientId: z.string().optional(),
+        projectId: z.string().optional(),
+      })
+      .parse(req.body);
+    const target = await prisma.user.findFirst({ where: { id: req.params.id, orgId: req.auth!.orgId } });
+    if (!target) throw new HttpError(404, 'user not found');
+    if (target.status !== 'active') throw new HttpError(409, 'user is not active', 'not_active');
+
+    const task = await assignTask({
+      userId: target.id,
+      orgId: req.auth!.orgId,
+      assignedById: req.auth!.userId,
+      title: body.title.trim(),
+      note: body.note ?? null,
+      clientId: body.clientId ?? null,
+      projectId: body.projectId ?? null,
+    });
+    await prisma.notification.create({
+      data: { userId: target.id, type: 'task_assigned', payloadJson: JSON.stringify({ taskId: task.id, title: task.title }) },
+    });
+    await audit({ orgId: req.auth!.orgId, actorId: req.auth!.userId, action: 'assign_task', entityType: 'task', entityId: task.id, after: { userId: target.id, title: task.title }, ip: clientIp(req) });
+    res.status(201).json({ id: task.id, title: task.title, state: task.state });
   }),
 );
 

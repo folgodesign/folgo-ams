@@ -90,9 +90,15 @@ meRouter.get(
       orderBy: { startedAt: 'desc' },
     });
     const todaysTasks = await prisma.task.findMany({
-      where: { userId: user.id, startedAt: { gte: new Date(`${date}T00:00:00`) } },
+      where: { userId: user.id, state: { not: 'assigned' }, startedAt: { gte: new Date(`${date}T00:00:00`) } },
       include: { intervals: true, client: true, project: true },
       orderBy: { startedAt: 'asc' },
+    });
+    // Tasks an admin assigned that haven't been started yet (any date).
+    const assignedTasks = await prisma.task.findMany({
+      where: { userId: user.id, state: 'assigned' },
+      include: { client: true, project: true },
+      orderBy: { assignedAt: 'desc' },
     });
 
     res.json({
@@ -120,6 +126,14 @@ meRouter.get(
         project: t.project?.name ?? null,
         startedAt: t.startedAt,
         endedAt: t.endedAt,
+      })),
+      assignedTasks: assignedTasks.map((t) => ({
+        id: t.id,
+        title: t.title,
+        note: t.note,
+        client: t.client?.name ?? null,
+        project: t.project?.name ?? null,
+        assignedAt: t.assignedAt,
       })),
     });
   }),

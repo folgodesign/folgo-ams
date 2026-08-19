@@ -208,12 +208,14 @@ model Task {
   note               String?
   clientId           String?
   projectId          String?
-  state              String    @default("in_progress") // in_progress | paused | completed | carried_over | cancelled
+  state              String    @default("in_progress") // assigned | in_progress | paused | completed | carried_over | cancelled
   startedAt          DateTime  @default(now())
   endedAt            DateTime?
   accumulatedSeconds Int       @default(0)
   carriedFromTaskId  String?
   createdVia         String    @default("web")
+  assignedById       String? // set when an admin assigns this task to the user
+  assignedAt         DateTime?
   editedAt           DateTime?
   editedBy           String?
 

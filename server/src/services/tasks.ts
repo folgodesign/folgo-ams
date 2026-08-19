@@ -70,12 +70,45 @@ export async function startTask(params: {
 export async function resumeTask(userId: string, taskId: string) {
   const now = new Date();
   await pauseCurrentTask(userId, now);
-  const task = await prisma.task.update({
-    where: { id: taskId },
-    data: { state: 'in_progress', endedAt: null },
-  });
+  const existing = await prisma.task.findUnique({ where: { id: taskId } });
+  // Starting an assigned task is its real beginning — stamp startedAt now so
+  // its timeline and duration reflect when the employee actually began.
+  const data: { state: string; endedAt: null; startedAt?: Date } = { state: 'in_progress', endedAt: null };
+  if (existing?.state === 'assigned') data.startedAt = now;
+  const task = await prisma.task.update({ where: { id: taskId }, data });
   await prisma.taskInterval.create({ data: { taskId, startedAt: now } });
   return task;
+}
+
+/**
+ * Admin assigns a task to an employee (state `assigned`). It appears in the
+ * employee's list with a Start button but runs no timer until they begin it.
+ */
+export async function assignTask(params: {
+  userId: string;
+  orgId: string;
+  assignedById: string;
+  title: string;
+  note?: string | null;
+  clientId?: string | null;
+  projectId?: string | null;
+}) {
+  const now = new Date();
+  return prisma.task.create({
+    data: {
+      userId: params.userId,
+      orgId: params.orgId,
+      title: params.title,
+      note: params.note ?? null,
+      clientId: params.clientId ?? null,
+      projectId: params.projectId ?? null,
+      state: 'assigned',
+      assignedById: params.assignedById,
+      assignedAt: now,
+      startedAt: now, // placeholder for ordering; reset to real start on begin
+      accumulatedSeconds: 0,
+    },
+  });
 }
 
 export async function transitionTask(

@@ -110,6 +110,22 @@ async function main() {
     await prisma.statusUpdate.create({ data: { userId: u.id, sessionId: session.id, status: sc.status, startedAt: checkIn } });
   }
 
+  // A couple of admin-assigned tasks waiting to be started, so the
+  // "Assigned to you" flow is visible on first login.
+  await prisma.task.create({
+    data: {
+      userId: created[4].id, orgId: org.id, title: 'Prepare Q3 vendor invoices',
+      note: 'Cross-check against the Globex PO before submitting.', clientId: globex.id,
+      state: 'assigned', assignedById: shahil.id, assignedAt: now, startedAt: now,
+    },
+  });
+  await prisma.task.create({
+    data: {
+      userId: created[2].id, orgId: org.id, title: 'Fix the staging deploy script',
+      note: 'Blocking the Friday release.', state: 'assigned', assignedById: nazil.id, assignedAt: now, startedAt: now,
+    },
+  });
+
   console.log('Seed complete.');
   console.log('Founders (admins): shahil@folgo.studio  &  nazil@folgo.studio  / folgopulse2026');
   console.log('Employees:         rahul@ / priya@ / tom@ / sara@ / meera@ folgo.studio / folgopulse2026');

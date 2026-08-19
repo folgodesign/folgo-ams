@@ -19,6 +19,7 @@ interface Today {
   firstCheckIn: string | null;
   currentTask: { id: string; title: string; seconds: number; client: string | null; project: string | null } | null;
   tasks: { id: string; title: string; state: string; seconds: number; client: string | null; project: string | null; startedAt: string; endedAt: string | null }[];
+  assignedTasks: { id: string; title: string; note: string | null; client: string | null; project: string | null; assignedAt: string }[];
 }
 
 export function HomePage() {
@@ -42,6 +43,14 @@ export function HomePage() {
   const setStatus = useMutation({ mutationFn: (status: string) => api.post('/me/status', { status }), onSuccess: invalidate });
   const startBreak = useMutation({ mutationFn: () => api.post('/me/breaks', { type: 'short' }), onSuccess: invalidate });
   const endBreak = useMutation({ mutationFn: (id: string) => api.patch(`/me/breaks/${id}`), onSuccess: invalidate });
+  // Start an admin-assigned task; check in first if the day hasn't started.
+  const startAssigned = useMutation({
+    mutationFn: async (id: string) => {
+      if (!data?.checkedIn) await api.post('/me/check-in', {});
+      await api.patch(`/me/tasks/${id}`, { state: 'in_progress' });
+    },
+    onSuccess: invalidate,
+  });
 
   if (isLoading || !data) return <Spinner />;
 
@@ -151,6 +160,26 @@ export function HomePage() {
 
         {/* Status selector + today's tasks. */}
         <div className="space-y-5">
+          {data.assignedTasks.length > 0 && (
+            <Card className="p-4 border-accent/40">
+              <div className="text-caption uppercase text-accent mb-3">Assigned to you ({data.assignedTasks.length})</div>
+              <ul className="space-y-3">
+                {data.assignedTasks.map((t) => (
+                  <li key={t.id} className="bg-bg-raised rounded-sm p-3">
+                    <div className="text-sm font-medium">{t.title}</div>
+                    {(t.client || t.project) && (
+                      <div className="text-caption uppercase text-text-muted mt-0.5">{t.client}{t.project ? ` · ${t.project}` : ''}</div>
+                    )}
+                    {t.note && <div className="text-sm text-text-muted mt-1">{t.note}</div>}
+                    <Button className="w-full mt-2" onClick={() => startAssigned.mutate(t.id)} disabled={startAssigned.isPending}>
+                      Start task
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+
           {data.checkedIn && (
             <Card className="p-4">
               <div className="text-caption uppercase text-text-muted mb-3">Set availability</div>
