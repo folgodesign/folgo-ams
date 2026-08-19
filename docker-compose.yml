@@ -1,0 +1,18 @@
+# Local development Postgres — matches the DATABASE_URL in server/.env.example.
+# Start it with:  docker compose up -d db
+# (Production uses Railway's managed Postgres, not this.)
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: folgo
+      POSTGRES_PASSWORD: folgo
+      POSTGRES_DB: folgo
+    ports:
+      - '5432:5432'
+    volumes:
+      - folgo_pgdata:/var/lib/postgresql/data
+
+volumes:
+  folgo_pgdata:

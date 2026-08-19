@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+**/build
+**/.env
+**/.env.*
+!**/.env.example
+**/*.log
+server/prisma/dev.db*
+.git
+.github
+*.md
+!README.md

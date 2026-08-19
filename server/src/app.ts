@@ -1,3 +1,6 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import fs from 'node:fs';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -21,22 +24,43 @@ export function createApp() {
   app.use(express.json({ limit: '1mb' }));
   app.use(cookieParser());
 
-  // PRD §11: /health is monitored specifically.
+  // All API routes live under /api so a single service can also serve the
+  // built frontend from the same origin (keeps the auth cookie same-site).
+  const api = express.Router();
+
+  // PRD §11: health endpoint is monitored specifically.
+  api.get('/health', (_req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
+
+  api.use('/auth', authRouter);
+  api.use('/me', meRouter);
+  api.use('/live', liveRouter);
+  api.use('/users', usersRouter);
+  api.use('/settings', settingsRouter);
+  api.use('/clients', clientsRouter);
+  api.use('/projects', projectsRouter);
+  api.use('/activity', activityRouter);
+  api.use('/tasks', taskSearchRouter);
+  api.use('/attendance', attendanceRouter);
+  api.use('/reports', reportsRouter);
+  api.use('/approvals', approvalsRouter);
+  api.use('/audit-log', auditRouter);
+
+  app.use('/api', api);
+  // Bare /health too, for platform health checks that hit the root path.
   app.get('/health', (_req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 
-  app.use('/auth', authRouter);
-  app.use('/me', meRouter);
-  app.use('/live', liveRouter);
-  app.use('/users', usersRouter);
-  app.use('/settings', settingsRouter);
-  app.use('/clients', clientsRouter);
-  app.use('/projects', projectsRouter);
-  app.use('/activity', activityRouter);
-  app.use('/tasks', taskSearchRouter);
-  app.use('/attendance', attendanceRouter);
-  app.use('/reports', reportsRouter);
-  app.use('/approvals', approvalsRouter);
-  app.use('/audit-log', auditRouter);
+  // In production, serve the built React app and fall back to index.html for
+  // client-side routes. WEB_DIST_PATH lets the container point at the build.
+  const webDist =
+    process.env.WEB_DIST_PATH ||
+    path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../web/dist');
+  if (config.isProd && fs.existsSync(webDist)) {
+    app.use(express.static(webDist));
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api')) return next();
+      res.sendFile(path.join(webDist, 'index.html'));
+    });
+  }
 
   app.use(errorHandler);
   return app;

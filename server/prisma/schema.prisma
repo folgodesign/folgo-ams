@@ -1,15 +1,16 @@
 // Folgo Pulse data model — see PRD §5.
-// SQLite for self-contained dev/demo; the schema is Postgres-portable
-// (swap provider to "postgresql" and set DATABASE_URL). Enum-like columns
-// are stored as strings and validated in the application layer; array-ish
-// columns (e.g. working_days) are stored as JSON strings.
+// PostgreSQL (the PRD's production store). Enum-like columns are stored as
+// strings and validated in the application layer; array-ish columns
+// (e.g. working_days) are stored as JSON strings, so the schema stays simple
+// and portable. For local dev, run the bundled `docker compose up -d db` to
+// get a Postgres instance, or point DATABASE_URL at any Postgres.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
