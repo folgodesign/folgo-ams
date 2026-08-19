@@ -85,9 +85,10 @@ usersRouter.post(
     await audit({ orgId: req.auth!.orgId, actorId: req.auth!.userId, action: 'invite_user', entityType: 'user', entityId: user.id, ip: clientIp(req) });
 
     // In production this link is emailed, never returned. Returned here so the
-    // demo works without an email provider configured.
+    // demo works without an email provider configured. The frontend builds the
+    // shareable link from its own origin, so `token` is the important field.
     const activationLink = `${config.appBaseUrl}/activate?token=${raw}`;
-    res.status(201).json({ id: user.id, email: user.email, activationLink });
+    res.status(201).json({ id: user.id, email: user.email, token: raw, activationLink });
   }),
 );
 
@@ -104,7 +105,7 @@ usersRouter.post(
     await prisma.invite.create({
       data: { userId: user.id, tokenHash: hashToken(raw), expiresAt: new Date(Date.now() + 7 * 86400_000) },
     });
-    res.json({ activationLink: `${config.appBaseUrl}/activate?token=${raw}` });
+    res.json({ token: raw, activationLink: `${config.appBaseUrl}/activate?token=${raw}` });
   }),
 );
 

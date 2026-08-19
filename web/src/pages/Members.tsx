@@ -79,7 +79,15 @@ function EditMemberModal({ member, onClose }: { member: Member; onClose: () => v
     teamId: member.teamId ?? '',
   });
   const [error, setError] = useState('');
+  const [inviteLink, setInviteLink] = useState('');
+  const [copied, setCopied] = useState(false);
   const set = (k: string) => (e: any) => setForm({ ...form, [k]: e.target.value });
+
+  const resend = useMutation({
+    mutationFn: () => api.post<{ token: string }>(`/users/${member.id}/resend-invite`),
+    onSuccess: (r) => setInviteLink(`${window.location.origin}/activate?token=${r.token}`),
+    onError: () => setError('Could not generate a new invite link.'),
+  });
 
   const save = useMutation({
     mutationFn: () =>
@@ -116,6 +124,28 @@ function EditMemberModal({ member, onClose }: { member: Member; onClose: () => v
     <div className="fixed inset-0 bg-black/60 grid place-items-center z-50 p-4" onClick={onClose}>
       <Card className="w-full max-w-md p-6 bg-bg-raised" onClick={(e) => e.stopPropagation()}>
         <h3 className="text-h2 mb-4">Edit {member.name.split(' ')[0]}</h3>
+
+        {member.status === 'invited' && (
+          <div className="mb-4 p-3 rounded-sm bg-bg-base border border-border-subtle">
+            <div className="text-caption uppercase text-status-break mb-1">Pending — not activated yet</div>
+            {inviteLink ? (
+              <>
+                <div className="text-sm text-accent break-all">{inviteLink}</div>
+                <button
+                  onClick={() => { navigator.clipboard?.writeText(inviteLink); setCopied(true); }}
+                  className="text-sm text-text-secondary hover:text-accent mt-2"
+                >
+                  {copied ? '✓ Copied — send this to them' : 'Copy link'}
+                </button>
+              </>
+            ) : (
+              <Button variant="outline" className="w-full" onClick={() => resend.mutate()} disabled={resend.isPending}>
+                {resend.isPending ? 'Generating…' : 'Get new invite link'}
+              </Button>
+            )}
+          </div>
+        )}
+
         <div className="space-y-3">
           <Field label="Name"><Input value={form.name} onChange={set('name')} /></Field>
           <Field label="Designation"><Input value={form.designation} onChange={set('designation')} /></Field>
@@ -160,9 +190,10 @@ function InviteModal({ onClose }: { onClose: () => void }) {
   const [form, setForm] = useState({ name: '', email: '', role: 'employee', teamId: '', designation: '' });
   const [link, setLink] = useState('');
   const invite = useMutation({
-    mutationFn: () => api.post<{ activationLink: string }>('/users/invite', { ...form, teamId: form.teamId || undefined, designation: form.designation || undefined }),
+    mutationFn: () => api.post<{ token: string }>('/users/invite', { ...form, teamId: form.teamId || undefined, designation: form.designation || undefined }),
     onSuccess: (r) => {
-      setLink(r.activationLink);
+      // Build the link from this site's own origin so it's always correct.
+      setLink(`${window.location.origin}/activate?token=${r.token}`);
       qc.invalidateQueries({ queryKey: ['members'] });
     },
   });
