@@ -7,10 +7,10 @@ export default defineConfig({
     port: 5173,
     proxy: {
       // Proxy API + SSE to the backend so cookies stay first-party in dev.
+      // The backend serves everything under /api, so no path rewrite.
       '/api': {
         target: 'http://localhost:4000',
         changeOrigin: true,
-        rewrite: (p) => p.replace(/^\/api/, ''),
       },
     },
   },

@@ -37,27 +37,32 @@ offline sync, and native apps.
 
 - **Frontend:** React + TypeScript, Vite, TailwindCSS, TanStack Query, React Router.
 - **Backend:** Node + TypeScript, Express, Prisma, Zod. Realtime via SSE.
-- **Database:** SQLite for self-contained dev/demo. The Prisma schema is
-  Postgres-portable — switch the `datasource` provider to `postgresql` and point
-  `DATABASE_URL` at a Postgres instance (the PRD's production target, ap-south-1).
+- **Database:** PostgreSQL (the PRD's production target). A `docker compose`
+  Postgres is bundled for local dev.
 
 The recommended production stack in PRD §11 (NestJS/Postgres/Redis/BullMQ) maps
 cleanly onto this structure; the in-memory rate limiter, SSE fan-out, and
 `setInterval` job runner are the three pieces that would move to Redis/BullMQ.
 
+**Deploying?** See [`DEPLOY.md`](./DEPLOY.md) — one Railway service (the API also
+serves the built frontend) plus Railway Postgres.
+
 ---
 
-## Running it
+## Running it locally
 
-Two processes. From the repo root:
+Needs Docker (for the local Postgres) and Node 18+. From the repo root:
 
 ```bash
+# 0. Start a local Postgres (matches server/.env.example)
+docker compose up -d db
+
 # 1. Backend  (http://localhost:4000)
 cd server
 cp .env.example .env
 npm install
 npm run prisma:generate
-npm run prisma:push      # creates the SQLite schema
+npm run prisma:push      # applies the schema to Postgres
 npm run seed             # demo org, users, and a populated live board
 npm run dev
 
@@ -69,6 +74,9 @@ npm run dev
 
 Open **http://localhost:5173**. The Vite dev server proxies `/api/*` to the
 backend so the refresh cookie stays first-party.
+
+> No Docker? Point `DATABASE_URL` in `server/.env` at any Postgres instance
+> (a free Neon/Railway database works) and skip step 0.
 
 ### Demo logins (from the seed)
 
